@@ -9,8 +9,7 @@ class CategoryAdmin(admin.ModelAdmin):
     search_fields = ("name", "slug")
     prepopulated_fields = {"slug": ("name",)}
 
-
-@admin.register(Product)
+ @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = ("name", "category", "price", "is_active", "created_at")
     list_filter = ("category", "is_active", "created_at")
