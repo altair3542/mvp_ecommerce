@@ -1,8 +1,11 @@
 # from django.shortcuts import render, get_object_or_404
-from typing import Any
-from django.db.models.query import QuerySet
-from django.views.generic import ListView, DetailView
-from .models import Product
+from django.views.generic import ListView, DetailView, CreateView, ContextMixin
+
+from typing import Optional
+
+from django.urls import reverse_lazy
+from .models import Product, Category
+
 # Create your views here.
 
 # def product_list(request):
@@ -24,6 +27,51 @@ from .models import Product
 #         "product": product
 #     }
 #     return render(request, "store/product_detail.html", context)
+
+class BaseStoreView(ContextMixin):
+    """
+    Mixin = base que va a coordinar las vistas de la tienda
+    aportar contexto comun como categorias, nombre de el sitio etc.
+    """
+    site_name = "mini e-commerce"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.setdefault("site_name", self.site_name)
+        context.setdefault("categories", Category.objects.all())
+        return context
+
+class CategoryListMixin:
+    """
+    Mixin para vistas de listado de productos filtradas por categoría.
+
+    - Lee el slug de categoría desde la URL.
+    - Filtra el queryset por esa categoría (si existe).
+    - Agrega la categoría actual al contexto.
+    """
+
+    category_slug_url_kwarg = "category_slug"
+
+    def get_category(self) -> Optional[Category]:
+        slug = self.kwargs.get(self.category_slug_url_kwarg)
+        if not slug:
+            return None
+        return Category.objects.filter(slug=slug).first()
+
+    def get_queryset(self):
+        """
+        Extiende el queryset base filtrando por categoría si corresponde.
+        """
+        qs = super().get_queryset()
+        category = self.get_category()
+        if category is not None:
+            qs = qs.filter(category=category)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["current_category"] = self.get_category()
+        return context
 
 
 class ProductListView(ListView):
@@ -54,3 +102,14 @@ class ProductDetailView(DetailView):
 
     def get_queryset(self):
         return Product.objects.active()
+
+class ProductCreateView(CreateView):
+    """
+    vista generica para crear un producto.
+    mas adelante la vamos a completar por que en mi logica de negocio, solo personal autorizado va a poder crear productos, esto lo hatemos con un mixin llamado loginrquiredmixin o permisos por politicas.
+    """
+
+    model = Product
+    fields = ["name", "slug", "category", "description", "price", "is_active"]
+    template_name = "store/product_form"
+    success_url = reverse_lazy("store:product_list")
